@@ -24,20 +24,8 @@ class ParserTest extends AbstractTest
         $this->assertEquals('InnoDB', $result['actor']->getEngine());
         $this->assertEquals(201, $result['actor']->getAutoIncrement());
         $this->assertEquals('utf8', $result['actor']->getDefaultCharset());
-        $this->assertEquals('CREATE TABLE `actor` (
-  `actor_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `first_name` varchar(45) NOT NULL,
-  `last_name` varchar(45) NOT NULL,
-  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`actor_id`),
-  KEY `idx_actor_last_name` (`last_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8;', $result['actor']->getCreationScript());
-        $this->assertEquals('`actor_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `first_name` varchar(45) NOT NULL,
-  `last_name` varchar(45) NOT NULL,
-  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`actor_id`),
-  KEY `idx_actor_last_name` (`last_name`)', $result['actor']->getDefinition());
+        $this->assertEquals($this->getDatabaseFixture('actor.sql'), $result['actor']->getCreationScript());
+        $this->assertEquals($this->getDatabaseFixture('actor_definition.sql'), $result['actor']->getDefinition());
     }
 
     public function testIsParsingColumns()
@@ -350,5 +338,44 @@ class ParserTest extends AbstractTest
         $this->assertNull($database->getTableByName('contact')->getDefaultCharset());
         $this->assertEquals('InnoDB', $database->getTableByName('contact')->getEngine());
         $this->assertEquals('`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT', $database->getTableByName('contact')->getColumnByName('id')->generateCreationScript());
+    }
+
+    public function testIsParsingFractionalSeconds()
+    {
+        $creationScript = $this->getDatabaseFixture('fractional_seconds.sql');
+
+        $parser = new Parser();
+
+        $database = $parser->parseDatabase($creationScript);
+
+        $this->assertInstanceOf(Database::class, $database);
+        $this->assertCount(1, $database->getTables());
+        $this->assertCount(3, $database->getTableByName('fractional_seconds')->getColumns());
+        $this->assertCount(0, $database->getTableByName('fractional_seconds')->getPrimaryKeys());
+        $this->assertCount(0, $database->getTableByName('fractional_seconds')->getIndexes());
+        $this->assertNull($database->getTableByName('fractional_seconds')->getDefaultCharset());
+        $this->assertEquals('InnoDB', $database->getTableByName('fractional_seconds')->getEngine());
+        $this->assertEquals('`datetime_column` DATETIME(1) NOT NULL', $database->getTableByName('fractional_seconds')->getColumnByName('datetime_column')->generateCreationScript());
+        $this->assertEquals('`timestamp_column` TIMESTAMP(2) NOT NULL', $database->getTableByName('fractional_seconds')->getColumnByName('timestamp_column')->generateCreationScript());
+        $this->assertEquals('`time_column` TIME(3) NOT NULL', $database->getTableByName('fractional_seconds')->getColumnByName('time_column')->generateCreationScript());
+    }
+
+    public function testIsParsingColumnWithBackslashInDefaultValue()
+    {
+        $creationScript = $this->getDatabaseFixture('backslash.sql');
+
+        $parser = new Parser();
+
+        $database = $parser->parseDatabase($creationScript);
+
+        $this->assertInstanceOf(Database::class, $database);
+        $this->assertCount(1, $database->getTables());
+        $this->assertCount(1, $database->getTableByName('backslash')->getColumns());
+        $this->assertCount(0, $database->getTableByName('backslash')->getPrimaryKeys());
+        $this->assertCount(0, $database->getTableByName('backslash')->getIndexes());
+        $this->assertEquals('utf8', $database->getTableByName('backslash')->getDefaultCharset());
+        $this->assertEquals('InnoDB', $database->getTableByName('backslash')->getEngine());
+        $this->assertEquals('Table/Comment', $database->getTableByName('backslash')->getComment());
+        $this->assertEquals('`time_zone` varchar(255) NOT NULL DEFAULT \'America/Los_Angeles\' COMMENT \'Column/Comment\'', $database->getTableByName('backslash')->getColumnByName('time_zone')->generateCreationScript());
     }
 }

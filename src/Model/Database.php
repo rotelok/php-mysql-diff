@@ -2,6 +2,9 @@
 
 namespace Camcima\MySqlDiff\Model;
 
+/**
+ * Class Database.
+ */
 class Database
 {
     /**
@@ -27,6 +30,8 @@ class Database
 
     /**
      * @param string $tableName
+     *
+     * @throws \RuntimeException
      *
      * @return Table
      */

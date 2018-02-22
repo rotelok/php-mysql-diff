@@ -2,6 +2,9 @@
 
 namespace Camcima\MySqlDiff\Model;
 
+/**
+ * Class ForeignKey.
+ */
 class ForeignKey
 {
     /**

@@ -2,6 +2,9 @@
 
 namespace Camcima\MySqlDiff\Model;
 
+/**
+ * Class DatabaseDiff.
+ */
 class DatabaseDiff
 {
     /**

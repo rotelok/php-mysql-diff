@@ -74,6 +74,19 @@ class DifferTest extends AbstractTest
         $differ->diffChangedTable($changedTable);
     }
 
+    public function testIsDiffingChangedComment()
+    {
+        $parser = new Parser();
+
+        $fromDatabase = $parser->parseDatabase($this->getDatabaseFixture('comment_change1.sql'));
+        $toDatabase = $parser->parseDatabase($this->getDatabaseFixture('comment_change2.sql'));
+
+        $differ = new Differ();
+        $databaseDiff = $differ->diffDatabases($fromDatabase, $toDatabase);
+
+        $this->assertContains('CHANGE COLUMN `field1` `field1` varchar(50) NOT NULL COMMENT \'New Comment\' FIRST;', $differ->generateMigrationScript($databaseDiff));
+    }
+
     public function testIsGeneratingMigrationScript()
     {
         $parser = new Parser();
@@ -87,5 +100,18 @@ class DifferTest extends AbstractTest
         $result = $differ->generateMigrationScript($databaseDiff);
 
         $this->assertEquals($this->getDatabaseFixture('sakila_migration.sql'), $result);
+    }
+
+    public function testIsDiffingDeletedForeignKeyColumn()
+    {
+        $parser = new Parser();
+
+        $fromDatabase = $parser->parseDatabase($this->getDatabaseFixture('fk_deleted_column1.sql'));
+        $toDatabase = $parser->parseDatabase($this->getDatabaseFixture('fk_deleted_column2.sql'));
+
+        $differ = new Differ();
+        $databaseDiff = $differ->diffDatabases($fromDatabase, $toDatabase);
+
+        $this->assertEquals($this->getDatabaseFixture('fk_deleted_column_migration.sql'), $differ->generateMigrationScript($databaseDiff));
     }
 }

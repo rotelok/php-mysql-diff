@@ -2,6 +2,9 @@
 
 namespace Camcima\MySqlDiff\Model;
 
+/**
+ * Class Index.
+ */
 class Index
 {
     /**
@@ -72,7 +75,7 @@ class Index
     }
 
     /**
-     * @return Column[]
+     * @return IndexColumn[]
      */
     public function getIndexColumns()
     {
@@ -98,12 +101,14 @@ class Index
     /**
      * @param $columnName
      *
+     * @throws \RuntimeException
+     *
      * @return IndexColumn
      */
     public function getIndexColumnByColumnName($columnName)
     {
         foreach ($this->indexColumns as $indexColumn) {
-            if ($indexColumn->getColumn()->getName() == $columnName) {
+            if ($indexColumn->getColumn()->getName() === $columnName) {
                 return $indexColumn;
             }
         }

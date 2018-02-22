@@ -2,20 +2,23 @@
 
 namespace Camcima\MySqlDiff;
 
-
+/**
+ * Class RegExpPattern.
+ */
 class RegExpPattern
 {
+    /**
+     * @var array
+     */
     private static $columnTypeRegExps = [
         '(?:tiny|small|medium|big)?int(?:\((?<intLength>\d+)\))?(?:\s+unsigned)?',
         'float(?:\s+unsigned)?(?:\((?<floatLength>\d+),(?<floatPrecision>\d+)\))?',
         'binary',
         'real',
-        'decimal\((?<decimalLength>\d+),(?<decimalPrecision>\d+)\)',
+        'decimal\((?<decimalLength>\d+),(?<decimalPrecision>\d+)\)(?:\s+unsigned)?',
         'double(?:\((?<doubleLength>\d+),(?<doublePrecision>\d+)\))?(?:\s+unsigned)?',
-        'datetime',
+        '(?:datetime|time|timestamp)(?:\((?<fractionalSeconds>\d+)\))?',
         'date',
-        'time',
-        'timestamp',
         'year\((?<yearLength>\d)\)',
         'geometry',
         '(?:var|nvar)?char\((?<charLength>\d+)\)',
@@ -32,13 +35,17 @@ class RegExpPattern
     public static function tables()
     {
         $pattern = '/(?<creationScript>CREATE\s+TABLE\s+(?<ifNotExists>IF NOT EXISTS)?\s*`(?<tableName>\S+)`\s+';
-        $pattern .= '\((?<tableDefinition>[^\/]+)\)';
+        $pattern .= '\((?<tableDefinition>[^\/]+?)\)';
         $pattern .= '(';
         $pattern .= '(?:\s+ENGINE\s*=\s*(?<engine>[^;\s]+))?\s*';
         $pattern .= '|';
         $pattern .= '(?:AUTO_INCREMENT\s*=\s*(?<autoIncrement>\d+))?\s*';
         $pattern .= '|';
         $pattern .= '(?:DEFAULT CHARSET\s*=\s*(?<defaultCharset>[^;\s]+))?\s*';
+        $pattern .= '|';
+        $pattern .= '(?:\s+ROW_FORMAT\s*=\s*(?<rowFormat>[^;\s]+))?\s*';
+        $pattern .= '|';
+        $pattern .= '(?:\s+KEY_BLOCK_SIZE\s*=\s*(?<keyBlockSize>[^;\s]+))?\s*';
         $pattern .= '|';
         $pattern .= '(?:COLLATE\s*=\s*.+?)?\s*';
         $pattern .= '|';

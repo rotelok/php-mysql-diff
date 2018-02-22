@@ -9,6 +9,9 @@ use Camcima\MySqlDiff\Model\Index;
 use Camcima\MySqlDiff\Model\IndexColumn;
 use Camcima\MySqlDiff\Model\Table;
 
+/**
+ * Class Parser.
+ */
 class Parser
 {
     /**
@@ -20,7 +23,7 @@ class Parser
     {
         $database = new Database();
 
-        $tables = $this->parseTables($sqlScript);
+        $tables = $this->parseTables($this->convertStringsToBase64($sqlScript));
 
         foreach ($tables as $table) {
             $this->parseTableDefinition($table);
@@ -41,15 +44,18 @@ class Parser
         preg_match_all(RegExpPattern::tables(), $sqlScript, $matches);
 
         $tables = [];
-        for ($i = 0; $i < count($matches[0]); $i++) {
+        $loopCounter = count($matches[0]);
+        for ($i = 0; $i < $loopCounter; $i++) {
             $name = $matches['tableName'][$i];
             $ifNotExists = $matches['ifNotExists'][$i];
-            $definition = $matches['tableDefinition'][$i];
-            $creationScript = $matches['creationScript'][$i];
+            $definition = $this->convertStringsFromBase64($matches['tableDefinition'][$i]);
+            $creationScript = $this->convertStringsFromBase64($matches['creationScript'][$i]);
             $engine = $matches['engine'][$i];
             $autoIncrement = $matches['autoIncrement'][$i];
             $defaultCharset = $matches['defaultCharset'][$i];
-            $comment = $matches['comment'][$i];
+            $comment = base64_decode($matches['comment'][$i]);
+            $rowFormat = $matches['rowFormat'][$i];
+            $keyBlockSize = $matches['keyBlockSize'][$i];
 
             $table = new Table($name);
             $table->setDefinition(trim($definition));
@@ -73,6 +79,14 @@ class Parser
 
             if ($comment) {
                 $table->setComment(str_replace('\'\'', '\'', $comment));
+            }
+
+            if ($rowFormat) {
+                $table->setRowFormat($rowFormat);
+            }
+
+            if ($keyBlockSize) {
+                $table->setKeyBlockSize($keyBlockSize);
             }
 
             $tables[$name] = $table;
@@ -100,7 +114,8 @@ class Parser
         preg_match_all(RegExpPattern::column(), $table->getDefinition(), $matches);
 
         $lastColumn = null;
-        for ($i = 0; $i < count($matches[0]); $i++) {
+        $loopCounter = count($matches[0]);
+        for ($i = 0; $i < $loopCounter; $i++) {
             $columnName = $matches['columnName'][$i];
             $columnType = $matches['columnType'][$i];
             $intLength = $matches['intLength'][$i];
@@ -113,6 +128,7 @@ class Parser
             $decimalPrecision = $matches['decimalPrecision'][$i];
             $doublePrecision = $matches['doublePrecision'][$i];
             $floatPrecision = $matches['floatPrecision'][$i];
+            $fractionalSeconds = $matches['fractionalSeconds'][$i];
             $nullable = $matches['nullable'][$i];
             $autoIncrement = $matches['autoIncrement'][$i];
             $defaultValue = $matches['defaultValue'][$i];
@@ -130,9 +146,9 @@ class Parser
             $column->setDataType($dataType);
             $column->setUnsigned($unsigned);
 
-            $column->setLength($this->getColumnLength($intLength, $decimalLength, $doubleLength, $floatLength, $charLength, $binaryLength, $yearLength));
+            $column->setLength($this->getColumnLength($intLength, $decimalLength, $doubleLength, $floatLength, $charLength, $binaryLength, $yearLength, $fractionalSeconds));
             $column->setPrecision($this->getColumnPrecision($decimalPrecision, $doublePrecision, $floatPrecision));
-            $column->setNullable($nullable != 'NOT NULL');
+            $column->setNullable($nullable !== 'NOT NULL');
             $column->setAutoIncrement(!empty($autoIncrement));
 
             if (!empty($defaultValue)) {
@@ -144,7 +160,7 @@ class Parser
             }
 
             if (!empty($comment)) {
-                $column->setComment(str_replace('\'\'','\'', $comment));
+                $column->setComment(str_replace('\'\'', '\'', $comment));
             }
 
             if (!empty($characterSet)) {
@@ -206,7 +222,8 @@ class Parser
     {
         preg_match_all(RegExpPattern::foreignKey(), $table->getDefinition(), $matches);
 
-        for ($i = 0; $i < count($matches[0]); $i++) {
+        $loopCounter = count($matches[0]);
+        for ($i = 0; $i < $loopCounter; $i++) {
             $name = $matches['name'][$i];
             $columnName = $matches['column'][$i];
             $referenceTableName = $matches['referenceTable'][$i];
@@ -238,7 +255,8 @@ class Parser
     {
         preg_match_all(RegExpPattern::index(), $table->getDefinition(), $matches);
 
-        for ($i = 0; $i < count($matches[0]); $i++) {
+        $loopCounter = count($matches[0]);
+        for ($i = 0; $i < $loopCounter; $i++) {
             $indexName = $matches['name'][$i];
             $indexColumnNames = explode(',', str_replace('`', '', $matches['columns'][$i]));
             $indexOptions = $matches['options'][$i];
@@ -282,28 +300,38 @@ class Parser
      * @param int $charLength
      * @param int $binaryLength
      * @param int $yearLength
+     * @param int $fractionalSeconds
      *
      * @return int|null
      */
-    private function getColumnLength($intLength, $decimalLength, $doubleLength, $floatLength, $charLength, $binaryLength, $yearLength)
+    private function getColumnLength($intLength, $decimalLength, $doubleLength, $floatLength, $charLength, $binaryLength, $yearLength, $fractionalSeconds)
     {
         if (!empty($intLength)) {
             return (int) $intLength;
-        } elseif (!empty($decimalLength)) {
-            return (int) $decimalLength;
-        } elseif (!empty($doubleLength)) {
-            return (int) $doubleLength;
-        } elseif (!empty($floatLength)) {
-            return (int) $floatLength;
-        } elseif (!empty($charLength)) {
-            return (int) $charLength;
-        } elseif (!empty($binaryLength)) {
-            return (int) $binaryLength;
-        } elseif (!empty($yearLength)) {
-            return (int) $yearLength;
-        } else {
-            return;
         }
+        if (!empty($decimalLength)) {
+            return (int) $decimalLength;
+        }
+        if (!empty($doubleLength)) {
+            return (int) $doubleLength;
+        }
+        if (!empty($floatLength)) {
+            return (int) $floatLength;
+        }
+        if (!empty($charLength)) {
+            return (int) $charLength;
+        }
+        if (!empty($binaryLength)) {
+            return (int) $binaryLength;
+        }
+        if (!empty($yearLength)) {
+            return (int) $yearLength;
+        }
+        if (!empty($fractionalSeconds)) {
+            return (int) $fractionalSeconds;
+        }
+
+        return;
     }
 
     /**
@@ -317,12 +345,48 @@ class Parser
     {
         if (!empty($decimalPrecision)) {
             return (int) $decimalPrecision;
-        } elseif (!empty($doublePrecision)) {
-            return (int) $doublePrecision;
-        } elseif (!empty($floatPrecision)) {
-            return (int) $floatPrecision;
-        } else {
-            return;
         }
+        if (!empty($doublePrecision)) {
+            return (int) $doublePrecision;
+        }
+        if (!empty($floatPrecision)) {
+            return (int) $floatPrecision;
+        }
+
+        return;
+    }
+
+    public function convertStringsToBase64($sqlScript)
+    {
+        $sqlScript = preg_replace_callback('/DEFAULT\s*\'(?<defaultValue>[^\']+)\'/', function ($matches) {
+            return sprintf('DEFAULT \'%s\'', base64_encode($matches['defaultValue']));
+        }, $sqlScript);
+
+        $sqlScript = preg_replace_callback('/COMMENT\s*\'(?<comment>[^\']+)\'/', function ($matches) {
+            return sprintf('COMMENT \'%s\'', base64_encode($matches['comment']));
+        }, $sqlScript);
+
+        $sqlScript = preg_replace_callback('/COMMENT\s*=\s*\'(?<comment>([^\']|\'\')+)\'/', function ($matches) {
+            return sprintf('COMMENT=\'%s\'', base64_encode($matches['comment']));
+        }, $sqlScript);
+
+        return $sqlScript;
+    }
+
+    public function convertStringsFromBase64($sqlScript)
+    {
+        $sqlScript = preg_replace_callback('/DEFAULT\s*\'(?<defaultValue>[^\']+)\'/', function ($matches) {
+            return sprintf('DEFAULT \'%s\'', base64_decode($matches['defaultValue']));
+        }, $sqlScript);
+
+        $sqlScript = preg_replace_callback('/COMMENT\s*\'(?<comment>[^\']+)\'/', function ($matches) {
+            return sprintf('COMMENT \'%s\'', base64_decode($matches['comment']));
+        }, $sqlScript);
+
+        $sqlScript = preg_replace_callback('/COMMENT\s*=\s*\'(?<comment>([^\']|\'\')+)\'/', function ($matches) {
+            return sprintf('COMMENT=\'%s\'', base64_decode($matches['comment']));
+        }, $sqlScript);
+
+        return $sqlScript;
     }
 }

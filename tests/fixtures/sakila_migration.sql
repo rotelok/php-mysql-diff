@@ -15,7 +15,8 @@ DROP TABLE `test1`;
 ALTER TABLE `test2`
   DROP PRIMARY KEY,
   DROP FOREIGN KEY `FK__test1`,
-  DROP INDEX `FK__test1`,
+  DROP INDEX `FK__test1`;
+ALTER TABLE `test2`
   CHANGE COLUMN `id` `id` int(10) NOT NULL AUTO_INCREMENT FIRST,
   CHANGE COLUMN `fk` `fk` int(10) AFTER `id`,
   CHANGE COLUMN `val` `val` decimal(11,3) NOT NULL AFTER `fk`,
@@ -23,7 +24,10 @@ ALTER TABLE `test2`
   ADD COLUMN `new_field` int(10) AFTER `datade`,
   ADD PRIMARY KEY (`id`,`new_field`),
   ADD UNIQUE KEY `FK__test1` (`datade`),
-  ADD CONSTRAINT `FK__test3` FOREIGN KEY (`fk`) REFERENCES `test3` (`id`);
+  ADD CONSTRAINT `FK__test3` FOREIGN KEY (`fk`) REFERENCES `test3` (`id`),
+  ROW_FORMAT=COMPRESSED,
+  KEY_BLOCK_SIZE=4,
+  COMMENT='test1';
 
 # New Tables
 

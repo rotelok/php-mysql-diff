@@ -2,6 +2,9 @@
 
 namespace Camcima\MySqlDiff\Model;
 
+/**
+ * Class ChangedTable.
+ */
 class ChangedTable
 {
     /**
@@ -300,30 +303,31 @@ class ChangedTable
      */
     public function generateAlterScript()
     {
+        $tableDrops = [];
         $tableChanges = [];
 
         if ($this->deletedPrimaryKey || (!empty($this->fromTable->getPrimaryKeys()) && !empty($this->changedPrimaryKeys))) {
-            $tableChanges[] = 'DROP PRIMARY KEY';
+            $tableDrops[] = 'DROP PRIMARY KEY';
         }
 
         foreach ($this->deletedForeignKeys as $deletedForeignKey) {
-            $tableChanges[] = sprintf('DROP FOREIGN KEY `%s`', $deletedForeignKey->getName());
+            $tableDrops[] = sprintf('DROP FOREIGN KEY `%s`', $deletedForeignKey->getName());
         }
 
         foreach ($this->changedForeignKeys as $changedForeignKey) {
-            $tableChanges[] = sprintf('DROP FOREIGN KEY `%s`', $changedForeignKey->getName());
+            $tableDrops[] = sprintf('DROP FOREIGN KEY `%s`', $changedForeignKey->getName());
         }
 
         foreach ($this->deletedIndexes as $deletedIndex) {
-            $tableChanges[] = sprintf('DROP INDEX `%s`', $deletedIndex->getName());
+            $tableDrops[] = sprintf('DROP INDEX `%s`', $deletedIndex->getName());
         }
 
         foreach ($this->changedIndexes as $changedIndex) {
-            $tableChanges[] = sprintf('DROP INDEX `%s`', $changedIndex->getName());
+            $tableDrops[] = sprintf('DROP INDEX `%s`', $changedIndex->getName());
         }
 
         foreach ($this->deletedColumns as $deletedColumn) {
-            $tableChanges[] = sprintf('DROP COLUMN `%s`', $deletedColumn->getName());
+            $tableDrops[] = sprintf('DROP COLUMN `%s`', $deletedColumn->getName());
         }
 
         $columnStatements = [];
@@ -367,9 +371,37 @@ class ChangedTable
             $tableChanges[] = sprintf('ADD %s', $newForeignKey->generateCreationScript());
         }
 
-        $alterScript = sprintf('ALTER TABLE `%s`%s  %s;', $this->getName(), PHP_EOL, implode(',' . PHP_EOL . '  ', $tableChanges));
+        if ($this->fromTable->getEngine() !== $this->toTable->getEngine()) {
+            $tableChanges[] = sprintf('ENGINE=%s', $this->toTable->getEngine());
+        }
 
-        return $alterScript;
+        if ($this->fromTable->getDefaultCharset() !== $this->toTable->getDefaultCharset()) {
+            $tableChanges[] = sprintf('DEFAULT CHARSET=%s', $this->toTable->getDefaultCharset());
+        }
+
+        if ($this->fromTable->getRowFormat() !== $this->toTable->getRowFormat()) {
+            $tableChanges[] = sprintf('ROW_FORMAT=%s', $this->toTable->getRowFormat());
+        }
+
+        if ($this->fromTable->getKeyBlockSize() !== $this->toTable->getKeyBlockSize()) {
+            $tableChanges[] = sprintf('KEY_BLOCK_SIZE=%s', $this->toTable->getKeyBlockSize());
+        }
+
+        if ($this->fromTable->getComment() !== $this->toTable->getComment()) {
+            $tableChanges[] = sprintf('COMMENT=\'%s\'', str_replace('\'', '\'\'', $this->toTable->getComment()));
+        }
+
+        $alterScripts = [];
+
+        if (!empty($tableDrops)) {
+            $alterScripts[] = sprintf('ALTER TABLE `%s`%s  %s;', $this->getName(), PHP_EOL, implode(',' . PHP_EOL . '  ', $tableDrops));
+        }
+
+        if (!empty($tableChanges)) {
+            $alterScripts[] = sprintf('ALTER TABLE `%s`%s  %s;', $this->getName(), PHP_EOL, implode(',' . PHP_EOL . '  ', $tableChanges));
+        }
+
+        return implode(PHP_EOL, $alterScripts);
     }
 
     /**
